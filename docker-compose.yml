@@ -1,0 +1,56 @@
+version: '3.8'
+
+networks:
+  taller-net:
+    driver: bridge
+
+services:
+  # Base de Datos PostgreSQL
+  postgres_db:
+    image: postgres:15-alpine
+    container_name: taller-db
+    environment:
+      POSTGRES_USER: taller_user
+      POSTGRES_PASSWORD: taller_pass
+      POSTGRES_DB: taller_db
+    ports:
+      - "5432:5432"
+    networks:
+      - taller-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taller_user -d taller_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Microservicio Backend (NestJS)
+  backend:
+    build:
+      context: ./backend-service
+      dockerfile: Dockerfile
+    container_name: taller-backend
+    environment:
+      DATABASE_HOST: postgres_db
+      DATABASE_PORT: 5432
+      DATABASE_USER: taller_user
+      DATABASE_PASSWORD: taller_pass
+      DATABASE_NAME: taller_db
+      PORT: 3000
+    depends_on:
+      postgres_db:
+        condition: service_healthy
+    networks:
+      - taller-net
+
+  # API Gateway (Nginx)
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: taller-gateway
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - taller-net
