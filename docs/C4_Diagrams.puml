@@ -1,0 +1,36 @@
+@startuml C4_Elements
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+' Configuración de encabezados y títulos
+SHOW_PERSON_OUTLINE()
+LAYOUT_WITH_LEGEND()
+
+TITLE Diagrama C4 - Sistema de Gestión de Citas para Taller Mecánico
+
+' --- NIVEL 1: DIAGRAMA DE CONTEXTO ---
+Person(cliente, "Cliente / Recepcionista", "Usuario que programa, consulta o gestiona las citas mecánicas de los vehículos.")
+
+System_Boundary(taller_system, "Sistema de Citas Taller Mecánico") {
+    System(app_backend, "Sistema SOA de Gestión de Citas", "Permite la recepción, consulta, actualización de estado y cancelación de citas de servicio técnico.")
+}
+
+Rel(cliente, app_backend, "Realiza solicitudes de gestión de citas", "HTTP / REST / JSON (Puerto 8080)")
+
+
+' --- NIVEL 2: DIAGRAMA DE CONTENEDORES ---
+System_Boundary(docker_network, "Red Docker (taller-net - Bridge)") {
+
+    Container(api_gateway, "API Gateway", "Nginx", "Punto único de entrada HTTP. Administra proxy inverso, políticas de CORS y logging/tracing de peticiones.")
+
+    Container(backend_api, "Backend Service", "NestJS, TypeScript, TypeORM", "Procesa la lógica de negocio REST, validación de DTOs y orquestación con la base de datos.")
+
+    ContainerDb(database, "Base de Datos Relacional", "PostgreSQL 15", "Almacena de forma persistente la entidad Appointment (clientes, vehículos, fechas y estados).")
+}
+
+' Relaciones internas entre contenedores
+Rel(cliente, api_gateway, "Consume API REST en", "HTTP / JSON (:8080)")
+Rel(api_gateway, backend_api, "Redirige peticiones internas a", "proxy_pass http://backend:3000")
+Rel(backend_api, database, "Lee y escribe datos en", "TCP / SQL (:5432 - Driver pg)")
+
+@enduml
